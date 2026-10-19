@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mole-Cule Lounge - DepEd Chemistry 3D Portal</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js for 3D Interactive Simulations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            deped: {
+              blue: '#0038A8',
+              navy: '#001F54',
+              gold: '#FCD116',
+              red: '#CE1126',
+              cyan: '#00F0FF'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Orbitron', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b1120;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+    }
+    #bg3dCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      pointer-events: none;
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #3b82f6;
+      border-radius: 3px;
+    }
+    .glow-blue {
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+    }
+    .glow-gold {
+      box-shadow: 0 0 15px rgba(252, 209, 22, 0.25);
+    }
+    canvas {
+      border-radius: 0.75rem;
+    }
+    @keyframes floatBob {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-bob {
+      animation: floatBob 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-100 overflow-x-hidden relative">
+
+  <!-- 3D MOVING LABORATORY BACKGROUND -->
+  <canvas id="bg3dCanvas"></canvas>
+
+  <!-- AUTH / WELCOME MODAL WITH SCIENTIST MASCOT ENTRANCE GREETING -->
+  <div id="authModal" class="fixed inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white flex items-center justify-center font-display font-extrabold text-3xl mx-auto mb-2 shadow-lg glow-blue animate-bob">
+          <i class="fa-solid fa-flask-vial"></i>
+        </div>
+        <h2 class="text-2xl font-bold font-display text-white">Mole-Cule Lounge Portal</h2>
+        <p class="text-xs text-slate-400 mt-1">Explore, Learn & Master Chemistry with <strong>Mole</strong>!</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl mb-4 text-xs font-semibold">
+        <button id="authTabStudent" type="button" onclick="switchAuthRole('student')" class="py-2 rounded-lg bg-blue-600 text-white shadow">
+          <i class="fa-solid fa-user-graduate mr-1"></i> Student
+        </button>
+        <button id="authTabTeacher" type="button" onclick="switchAuthRole('teacher')" class="py-2 rounded-lg text-slate-400 hover:text-white">
+          <i class="fa-solid fa-chalkboard-user mr-1"></i> Teacher / Adviser
+        </button>
+      </div>
+
+      <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 mb-1" id="nameLabel">Full Name</label>
+          <input type="text" id="authName" placeholder="e.g. Juan Dela Cruz" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-400">
+        </div>
+
+        <div id="studentOnlyFields" class="space-y-3">
+          <div>
+            <label class="block text-slate-300 mb-1">Learner Reference Number (LRN)</label>
+            <input type="text" id="authLRN" placeholder="12-digit LRN" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-400">
+          </div>
+          <div>
+            <label class="block text-slate-300 mb-1">Grade & Section</label>
+            <input type="text" id="authGrade" placeholder="e.g. Grade 10 - Molave" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-400">
+          </div>
+        </div>
+
+        <div id="teacherOnlyFields" class="hidden space-y-3">
+          <div>
+            <label class="block text-slate-300 mb-1">Teacher Employee ID / Email</label>
+            <input type="text" id="authTeacherID" placeholder="e.g. T-2026-9812" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-400">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 mb-1">School Name</label>
+          <input type="text" id="authSchool" value="Central National High School" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-400">
+        </div>
+
+        <button type="submit" class="w-full bg-gradient-to-r from-deped-blue to-cyan-600 hover:from-blue-600 hover:to-cyan-500 text-white font-bold py-2.5 rounded-xl shadow-lg mt-4 transition">
+          Enter Lounge & Meet Scientist Mole 👋
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- CHEMISTRY CALCULATOR MODAL -->
+  <div id="calculatorModal" class="hidden fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-calculator text-cyan-400 text-lg"></i>
+          <h3 class="font-bold text-white text-sm">Chemistry & Math Calculator</h3>
+        </div>
+        <button onclick="toggleCalculator(false)" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="mb-3">
+        <label class="block text-[11px] text-slate-400 mb-1">Molar Mass Quick Select:</label>
+        <select id="calcPreset" onchange="applyCalcPreset()" class="w-full bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-cyan-300">
+          <option value="">-- Choose Compound --</option>
+          <option value="H2O">Water (H₂O) = 18.015 g/mol</option>
+          <option value="CO2">Carbon Dioxide (CO₂) = 44.01 g/mol</option>
+          <option value="C6H12O6">Glucose (C₆H₁₂O₆) = 180.16 g/mol</option>
+          <option value="NaCl">Table Salt (NaCl) = 58.44 g/mol</option>
+          <option value="CaCO3">Calcium Carbonate (CaCO₃) = 100.09 g/mol</option>
+        </select>
+      </div>
+
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 mb-3 text-right">
+        <div id="calcExpr" class="text-[10px] text-slate-400 h-4 overflow-x-auto">0</div>
+        <div id="calcDisplay" class="text-xl font-bold font-mono text-cyan-400 truncate">0</div>
+      </div>
+
+      <div class="grid grid-cols-4 gap-2 text-xs font-mono">
+        <button onclick="calcClear()" class="col-span-2 bg-rose-900/40 text-rose-300 border border-rose-700/50 p-2.5 rounded-lg hover:bg-rose-800/60 font-bold">C / AC</button>
+        <button onclick="calcPress('/')" class="bg-slate-800 text-cyan-300 p-2.5 rounded-lg hover:bg-slate-700 font-bold">÷</button>
+        <button onclick="calcPress('*')" class="bg-slate-800 text-cyan-300 p-2.5 rounded-lg hover:bg-slate-700 font-bold">×</button>
+
+        <button onclick="calcPress('7')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">7</button>
+        <button onclick="calcPress('8')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">8</button>
+        <button onclick="calcPress('9')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">9</button>
+        <button onclick="calcPress('-')" class="bg-slate-800 text-cyan-300 p-2.5 rounded-lg hover:bg-slate-700 font-bold">-</button>
+
+        <button onclick="calcPress('4')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">4</button>
+        <button onclick="calcPress('5')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">5</button>
+        <button onclick="calcPress('6')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">6</button>
+        <button onclick="calcPress('+')" class="bg-slate-800 text-cyan-300 p-2.5 rounded-lg hover:bg-slate-700 font-bold">+</button>
+
+        <button onclick="calcPress('1')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">1</button>
+        <button onclick="calcPress('2')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">2</button>
+        <button onclick="calcPress('3')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">3</button>
+        <button onclick="calcEval()" class="row-span-2 bg-gradient-to-b from-blue-600 to-cyan-600 text-white p-2.5 rounded-lg hover:from-blue-500 hover:to-cyan-500 font-bold flex items-center justify-center text-lg">=</button>
+
+        <button onclick="calcPress('0')" class="col-span-2 bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">0</button>
+        <button onclick="calcPress('.')" class="bg-slate-800 text-white p-2.5 rounded-lg hover:bg-slate-700 font-bold">.</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEACHER ANALYTICS DASHBOARD MODAL -->
+  <div id="teacherDashboardModal" class="hidden fixed inset-0 z-[90] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center text-xl">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <div>
+            <h3 class="font-bold font-display text-lg text-white">Teacher Monitoring & Student Analytics</h3>
+            <p class="text-xs text-slate-400">DepEd K-12 Chemistry Class Roster Monitoring</p>
+          </div>
+        </div>
+        <button onclick="toggleTeacherDashboard(false)" class="text-slate-400 hover:text-white text-lg px-2">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-xs">
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <p class="text-slate-400 font-medium">Total Active Students</p>
+          <p class="text-xl font-bold font-display text-cyan-400 mt-1" id="statTotalStudents">4 Students</p>
+        </div>
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <p class="text-slate-400 font-medium">Class Avg. Mastery Score</p>
+          <p class="text-xl font-bold font-display text-emerald-400 mt-1" id="statAvgScore">86.6%</p>
+        </div>
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <p class="text-slate-400 font-medium">Certificates Issued</p>
+          <p class="text-xl font-bold font-display text-deped-gold mt-1" id="statCertificates">3 Ready</p>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto custom-scrollbar border border-slate-800 rounded-xl bg-slate-950">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 border-b border-slate-800 text-slate-400 font-mono sticky top-0">
+            <tr>
+              <th class="p-3">Student Name</th>
+              <th class="p-3">LRN</th>
+              <th class="p-3">Section</th>
+              <th class="p-3">Modules Done</th>
+              <th class="p-3">Quiz Score</th>
+              <th class="p-3">Status</th>
+            </tr>
+          </thead>
+          <tbody id="teacherRosterTable" class="divide-y divide-slate-800/60">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex justify-end pt-4 mt-2 border-t border-slate-800">
+        <button onclick="toggleTeacherDashboard(false)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-semibold">
+          Close Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <header class="bg-gradient-to-r from-deped-navy via-slate-900 to-deped-blue border-b border-blue-900/60 sticky top-0 z-50 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white flex items-center justify-center font-display font-extrabold text-2xl shadow-lg glow-blue">
+            <i class="fa-solid fa-atom"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="bg-deped-gold/20 text-deped-gold text-xs px-2 py-0.5 rounded font-semibold border border-deped-gold/30">DepEd K-12 STEM</span>
+              <span id="roleBadge" class="text-cyan-400 text-xs font-mono">Student Lounge</span>
+            </div>
+            <h1 class="text-2xl font-bold font-display tracking-wide text-white flex items-center gap-2">
+              Mole-Cule Lounge
+            </h1>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+          <button onclick="toggleCalculator(true)" class="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
+            <i class="fa-solid fa-calculator"></i> Chemistry Calculator
+          </button>
+
+          <button id="teacherNavBtn" onclick="toggleTeacherDashboard(true)" class="hidden bg-yellow-500/20 hover:bg-yellow-500/30 text-deped-gold border border-deped-gold/40 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
+            <i class="fa-solid fa-chart-line"></i> Teacher Monitor
+          </button>
+
+          <div class="bg-slate-900/90 border border-slate-700/70 rounded-xl p-2.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs w-full">
+            <div>
+              <label class="block text-slate-400 font-medium mb-0.5 text-[10px]"><i class="fa-solid fa-user text-blue-400 mr-1"></i> User Name</label>
+              <input type="text" id="studentName" value="Juan Dela Cruz" oninput="updateProfile()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-blue-500 text-xs">
+            </div>
+            <div>
+              <label class="block text-slate-400 font-medium mb-0.5 text-[10px]"><i class="fa-solid fa-graduation-cap text-yellow-400 mr-1"></i> Grade & Section</label>
+              <input type="text" id="studentGrade" value="Grade 10 - Molave" oninput="updateProfile()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-blue-500 text-xs">
+            </div>
+            <div>
+              <label class="block text-slate-400 font-medium mb-0.5 text-[10px]"><i class="fa-solid fa-id-card text-emerald-400 mr-1"></i> LRN / Teacher ID</label>
+              <input type="text" id="studentLRN" value="123456789012" oninput="updateProfile()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-blue-500 text-xs">
+            </div>
+            <div>
+              <label class="block text-slate-400 font-medium mb-0.5 text-[10px]"><i class="fa-solid fa-school text-purple-400 mr-1"></i> School Name</label>
+              <input type="text" id="studentSchool" value="Central National High School" oninput="updateProfile()" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-blue-500 text-xs">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 py-6 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- LEFT SIDEBAR: SCIENTIST MASCOT, AI CHAT & NAV -->
+    <aside class="lg:col-span-4 flex flex-col gap-6">
+      
+      <!-- SCIENTIST MOLE 3D ANIMATED MASCOT WITH MOUTH SYNC & NARRATION -->
+      <div class="bg-gradient-to-b from-slate-900 via-slate-900 to-blue-950/80 border-2 border-cyan-500/40 rounded-2xl p-4 shadow-2xl relative overflow-hidden flex flex-col items-center text-center">
+        <div class="w-full flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h3 class="font-bold font-display text-sm text-cyan-300">Scientist Mole: Narrator</h3>
+          </div>
+          <button onclick="toggleVoice()" id="voiceToggleBtn" class="bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-volume-high text-cyan-400"></i> Narration: <span id="voiceStatus" class="text-emerald-400 font-bold">ON</span>
+          </button>
+        </div>
+
+        <div class="relative w-full h-56 bg-slate-950/90 rounded-xl overflow-hidden border border-cyan-500/30 shadow-inner flex items-center justify-center">
+          <canvas id="mascotCanvas" class="w-full h-full cursor-pointer" onclick="triggerMascotWave()"></canvas>
+          <div id="mascotFallback" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-950 p-4 text-center">
+            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 border-2 border-cyan-300 text-white flex items-center justify-center text-3xl mb-2 animate-bob shadow-lg">
+              <i class="fa-solid fa-flask"></i>
+            </div>
+            <p class="text-xs text-cyan-300 font-bold font-display">Scientist Mole</p>
+            <p class="text-[10px] text-slate-400">Lead Chemistry Guide</p>
+          </div>
+          
+          <div id="mascotMoodBadge" class="absolute top-2 left-2 bg-slate-900/80 backdrop-blur border border-cyan-500/30 px-2 py-0.5 rounded text-[10px] font-mono text-cyan-300">
+            Mood: Excited 👋
+          </div>
+          <div class="absolute bottom-2 right-2 text-[9px] text-slate-500">
+            Click Scientist Mole to wave 👋
+          </div>
+        </div>
+
+        <div class="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3 text-left mt-3 relative shadow-lg">
+          <div class="absolute -top-2 left-8 w-3 h-3 bg-slate-950 border-t border-l border-slate-800 transform rotate-45"></div>
+          <p id="drAtomSpeech" class="text-xs text-cyan-100 leading-relaxed italic">
+            "Greetings! I am Scientist Mole. I am here to narrate and guide you through all DepEd chemistry objectives using 3D simulations!"
+          </p>
+        </div>
+
+        <button onclick="askDrAtomHint()" class="w-full mt-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold rounded-lg py-2 px-3 text-xs shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-lightbulb text-yellow-300"></i> Ask Scientist Mole for a Socratic Hint
+        </button>
+      </div>
+
+      <!-- AI SCOLAR / TUTOR PANEL -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col">
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-800">
+          <h3 class="text-xs font-bold font-display text-cyan-300 flex items-center gap-2">
+            <i class="fa-solid fa-robot text-cyan-400"></i> Ask Scientist Mole
+          </h3>
+          <span class="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 font-mono">24/7 Assistant</span>
+        </div>
+
+        <div id="aiChatBox" class="bg-slate-950 border border-slate-800 rounded-xl p-3 h-48 overflow-y-auto custom-scrollbar text-xs space-y-2 mb-3">
+          <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-slate-300">
+            <span class="text-cyan-400 font-bold block mb-1"><i class="fa-solid fa-flask mr-1"></i> Scientist Mole:</span>
+            Hello! Ask me anything about percent composition, balancing equations, or mass conservation!
+          </div>
+        </div>
+
+        <form onsubmit="handleAiQuestion(event)" class="flex gap-2">
+          <input type="text" id="aiQueryInput" placeholder="Ask Scientist Mole a question..." required class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400">
+          <button type="submit" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition shadow">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- MERRILL'S FIRST PRINCIPLES TRACKER -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg">
+        <h3 class="text-sm font-bold font-display text-slate-200 mb-3 flex items-center justify-between">
+          <span><i class="fa-solid fa-list-check text-deped-gold mr-2"></i> Merrill's Learning Path</span>
+          <span class="text-xs font-normal text-slate-400" id="overallProgressPercent">0% Done</span>
+        </h3>
+        
+        <div class="space-y-2 text-xs">
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-[10px]">1</span>
+              <div>
+                <p class="font-semibold text-slate-200">Task-Centered</p>
+                <p class="text-[10px] text-slate-400">Real-world Problem Solving</p>
+              </div>
+            </div>
+            <i class="fa-solid fa-check-circle text-emerald-500 text-sm"></i>
+          </div>
+
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold text-[10px]">2</span>
+              <div>
+                <p class="font-semibold text-slate-200">Activation</p>
+                <p class="text-[10px] text-slate-400">Recalling Prior Knowledge</p>
+              </div>
+            </div>
+            <i id="p2Check" class="fa-solid fa-check-circle text-emerald-500 text-sm"></i>
+          </div>
+
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-[10px]">3</span>
+              <div>
+                <p class="font-semibold text-slate-200">Demonstration</p>
+                <p class="text-[10px] text-slate-400">3D Interactive Models</p>
+              </div>
+            </div>
+            <i id="p3Check" class="fa-solid fa-check-circle text-emerald-500 text-sm"></i>
+          </div>
+
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px]">4</span>
+              <div>
+                <p class="font-semibold text-slate-200">Application</p>
+                <p class="text-[10px] text-slate-400">Socratic Guided Quizzes</p>
+              </div>
+            </div>
+            <i id="p4Check" class="fa-solid fa-circle text-slate-700 text-sm"></i>
+          </div>
+
+          <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[10px]">5</span>
+              <div>
+                <p class="font-semibold text-slate-200">Integration</p>
+                <p class="text-[10px] text-slate-400">Real World Mastery</p>
+              </div>
+            </div>
+            <i id="p5Check" class="fa-solid fa-circle text-slate-700 text-sm"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEPEK OBJECTIVES MODULE NAVIGATION -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex-1">
+        <h3 class="text-sm font-bold font-display text-slate-200 mb-3 text-deped-gold flex items-center gap-2">
+          <i class="fa-solid fa-book-open"></i> DepEd Chemistry Objectives
+        </h3>
+        <div class="space-y-2" id="topicButtonsContainer">
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT MAIN COLUMN -->
+    <main class="lg:col-span-8 flex flex-col gap-6">
+
+      <!-- Topic Card Banner -->
+      <div class="glass-card border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+          <span id="topicCodeBadge" class="bg-deped-blue/50 text-blue-300 font-mono text-xs px-2.5 py-1 rounded-md border border-blue-500/30 w-max">
+            STEM_GC11PC-If-31
+          </span>
+          <span id="lessonStepIndicator" class="text-xs text-slate-400 font-medium bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800 w-max">
+            Subtopic 1 of 4
+          </span>
+        </div>
+        <h2 id="topicTitle" class="text-2xl font-bold font-display text-white mb-2">
+          1. Calculate Percent Composition of a Compound from its Formula
+        </h2>
+        <p id="topicDescription" class="text-xs text-slate-300 leading-relaxed max-w-2xl">
+          Calculate the mass percentage of each constituent element present in a chemical compound using molar masses.
+        </p>
+
+        <!-- Element Quick-Reference Cards -->
+        <div id="elementQuickRef" class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap gap-2 text-xs">
+        </div>
+      </div>
+
+      <!-- 4 Progressive Lessons Tab bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 glass-card p-1.5 rounded-xl border border-slate-800 text-xs">
+        <button id="lessonTab1" onclick="switchLesson(1)" class="py-2 px-3 rounded-lg font-semibold transition bg-blue-600 text-white shadow">
+          Subtopic 1: Fundamentals
+        </button>
+        <button id="lessonTab2" onclick="switchLesson(2)" class="py-2 px-3 rounded-lg font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+          Subtopic 2: Step-by-Step
+        </button>
+        <button id="lessonTab3" onclick="switchLesson(3)" class="py-2 px-3 rounded-lg font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+          Subtopic 3: Applications
+        </button>
+        <button id="lessonTab4" onclick="switchLesson(4)" class="py-2 px-3 rounded-lg font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-circle-play text-red-500"></i> Video Tutorial
+        </button>
+      </div>
+
+      <div class="glass-card border border-slate-800 rounded-2xl p-5 shadow-lg">
+        <div id="lessonContent" class="text-xs sm:text-sm text-slate-300 space-y-3 leading-relaxed">
+        </div>
+      </div>
+
+      <!-- 3D INTERACTIVE SIMULATION CONTAINER -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="text-base font-bold font-display text-white flex items-center gap-2">
+              <i class="fa-solid fa-cube text-cyan-400"></i> Interactive 3D Lab Simulation
+            </h3>
+            <p class="text-xs text-slate-400">Rotate with mouse/touch drag. Inspect 3D molecular and reaction simulations.</p>
+          </div>
+        </div>
+
+        <div class="relative w-full h-72 sm:h-80 bg-slate-950 rounded-xl overflow-hidden border border-slate-800/80 shadow-inner">
+          <canvas id="threeCanvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+          <div id="simFallback" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-950/95 p-6 text-center z-10">
+            <i class="fa-solid fa-atom text-4xl text-cyan-400 mb-2 animate-spin"></i>
+            <h4 class="text-sm font-bold text-slate-200">Interactive Simulation View</h4>
+            <p class="text-xs text-slate-400 max-w-sm mt-1">WebGL view active. Drag to inspect 3D structure.</p>
+          </div>
+          
+          <div id="simOverlay" class="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3 py-1.5 rounded-lg text-xs font-mono text-cyan-300">
+            3D Molecular Visualizer Ready
+          </div>
+          
+          <div class="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-sm border border-slate-800 px-2 py-1 rounded text-[10px] text-slate-400 flex items-center gap-1">
+            <i class="fa-solid fa-arrows-spin text-blue-400"></i> Drag to Rotate 3D Model
+          </div>
+        </div>
+      </div>
+
+      <!-- SOCRATIC QUIZ SECTION (COLUMN FORM & FINAL ANSWER REVEAL) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col gap-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 class="text-base font-bold font-display text-white flex items-center gap-2">
+            <i class="fa-solid fa-brain text-yellow-400"></i> Objective Quiz (Column Form)
+          </h3>
+          <span id="quizScoreBadge" class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-2.5 py-1 rounded-md font-mono">
+            Module Score: 0 / 5
+          </span>
+        </div>
+
+        <!-- Column Form Container for Quiz Questions -->
+        <div id="quizQuestionBox" class="flex flex-col gap-4">
+        </div>
+
+        <div id="feedbackBox" class="hidden p-4 rounded-xl border text-xs leading-relaxed transition-all">
+        </div>
+
+        <div class="flex justify-between items-center pt-2">
+          <button onclick="prevQuestion()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-xs font-medium transition">
+            <i class="fa-solid fa-arrow-left mr-1.5"></i> Previous
+          </button>
+          <button onclick="submitAnswer()" class="bg-deped-blue hover:bg-blue-600 text-white px-5 py-2 rounded-lg text-xs font-semibold shadow-lg transition">
+            Check & Show Final Answer <i class="fa-solid fa-check ml-1.5"></i>
+          </button>
+          <button onclick="nextQuestion()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg text-xs font-medium transition">
+            Next <i class="fa-solid fa-arrow-right ml-1.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- CERTIFICATE GENERATOR -->
+      <div id="completionBanner" class="hidden bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-amber-500/20 border border-deped-gold/50 rounded-2xl p-5 text-center space-y-3">
+        <div class="w-12 h-12 bg-deped-gold text-slate-950 rounded-full flex items-center justify-center text-2xl mx-auto font-bold shadow-lg">
+          🏆
+        </div>
+        <h3 class="text-xl font-bold font-display text-deped-gold">Mole-Cule Lounge Certificate Ready!</h3>
+        <p class="text-xs text-slate-300">Congratulations! You have successfully mastered all DepEd chemistry objectives.</p>
+        <button onclick="window.print()" class="bg-deped-gold hover:bg-yellow-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-xs transition shadow-lg inline-flex items-center gap-2">
+          <i class="fa-solid fa-print"></i> View & Print Completion Summary
+        </button>
+      </div>
+
+    </main>
+
+  </div>
+
+  <footer class="bg-slate-950 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <p>© 2026 Mole-Cule Lounge - DepEd STEM Chemistry Portal</p>
+      <p class="text-[11px] text-slate-600">Aligned with Merrill's First Principles of Instruction & DepEd Competencies</p>
+    </div>
+  </footer>
+
+  <script>
+    // 7 DepEd Objectives mapped across modules
+    const topicsData = [
+      {
+        id: 1,
+        code: "STEM_GC11PC-If-31",
+        title: "1. Calculate percent composition of a compound from its formula",
+        desc: "Calculate the mass percentage of each constituent element present in a chemical compound using molar masses.",
+        elements: [
+          { symbol: "H", name: "Hydrogen", mass: "1.008 g/mol", bg: "bg-blue-500/20 text-blue-300 border-blue-500/40" },
+          { symbol: "O", name: "Oxygen", mass: "15.999 g/mol", bg: "bg-red-500/20 text-red-300 border-red-500/40" }
+        ],
+        lessons: [
+          { 
+            title: "Subtopic 1.1: Core Formula & Definitions", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Percent Composition:</strong> The percentage by mass of each element in a compound.</li>
+                  <li><strong>Molar Mass:</strong> The mass of one mole of a substance expressed in grams per mole (g/mol).</li>
+                </ul>
+              </div>
+              <p><strong>Percent Composition Formula:</strong></p>
+              <div class='my-3 p-3 bg-slate-950 border border-cyan-500/40 rounded-xl text-center font-mono text-cyan-300 text-xs shadow-inner'>% Element = (n × Molar Mass of Element / Molar Mass of Compound) × 100%</div>
+            ` 
+          },
+          { 
+            title: "Subtopic 1.2: Step-by-Step Calculation Guide", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Subscript:</strong> The small number indicating how many atoms of an element are present.</li>
+                </ul>
+              </div>
+              <p>1. Find total molar mass by adding element masses.<br>2. Isolate element mass contribution.<br>3. Divide element contribution by compound molar mass and multiply by 100%.</p>
+            ` 
+          },
+          { 
+            title: "Subtopic 1.3: Real-World Applications", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Nutritional Labeling:</strong> Determining elemental mass proportions per serving.</li>
+                </ul>
+              </div>
+              <p>Utilized in agricultural N-P-K fertilizer labeling, dietary sodium analysis, and alloy metallurgy.</p>
+            ` 
+          },
+          { title: "Subtopic 1.4: Curated Video Tutorial", text: `<div class='aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-950'><iframe class='w-full h-full' src='https://www.youtube.com/embed/lywmGCfIUIA' frameborder='0' allowfullscreen></iframe></div>` }
+        ],
+        questions: [
+          { q: "Calculate the mass percentage of Oxygen in Water (H₂O). (H = 1.008 g/mol, O = 15.999 g/mol)", opts: ["11.2%", "88.8%", "50.0%", "33.3%"], ans: 1, hint: "Total molar mass is ~18.015 g/mol. Oxygen is ~16.00 g/mol.", finalAnswer: "88.8%" },
+          { q: "What is the mass percent of Hydrogen in Water (H₂O)?", opts: ["11.2%", "88.8%", "25.0%", "50.0%"], ans: 0, hint: "Hydrogen total mass is 2 x 1.008 = 2.016 g/mol.", finalAnswer: "11.2%" },
+          { q: "In Carbon Dioxide (CO₂), what is the mass percent of Carbon? (C = 12.01, O = 16.00)", opts: ["27.3%", "72.7%", "50.0%", "33.3%"], ans: 0, hint: "Molar mass of CO₂ is 44.01 g/mol. Carbon is 12.01 g/mol.", finalAnswer: "27.3%" },
+          { q: "What is the total molar mass of Glucose (C₆H₁₂O₆)?", opts: ["180.16 g/mol", "90.08 g/mol", "342.30 g/mol", "100.00 g/mol"], ans: 0, hint: "(6x12.011) + (12x1.008) + (6x15.999) = 180.16 g/mol.", finalAnswer: "180.16 g/mol" },
+          { q: "If a 50g sample contains 20g of Calcium, what is the percent composition of Calcium?", opts: ["40%", "20%", "50%", "60%"], ans: 0, hint: "(20g / 50g) * 100% = 40%.", finalAnswer: "40%" }
+        ]
+      },
+      {
+        id: 2,
+        code: "STEM_GC11PC-If-32",
+        title: "2. Calculate the empirical formula from percent composition",
+        desc: "Determine the simplest whole-number ratio of atoms in a chemical compound.",
+        elements: [
+          { symbol: "C", name: "Carbon", mass: "12.011 g/mol", bg: "bg-slate-500/20 text-slate-300 border-slate-500/40" },
+          { symbol: "H", name: "Hydrogen", mass: "1.008 g/mol", bg: "bg-blue-500/20 text-blue-300 border-blue-500/40" }
+        ],
+        lessons: [
+          { 
+            title: "Subtopic 2.1: Empirical vs Molecular Formula", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Empirical Formula:</strong> The simplest whole-number ratio of elements in a compound.</li>
+                </ul>
+              </div>
+              <p>CH₂O is empirical for Glucose (C₆H₁₂O₆).</p>
+            ` 
+          },
+          { 
+            title: "Subtopic 2.2: The Standard Rhyme Method", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Mole Ratio:</strong> Proportional relationship between moles of elements.</li>
+                </ul>
+              </div>
+              <p class='font-mono text-cyan-300'>Percent to Mass, Mass to Mole, Divide by Small, Multiply 'til Whole!</p>
+            ` 
+          },
+          { 
+            title: "Subtopic 2.3: Sample Calculation Walkthrough", 
+            text: `<p>Assume 100g sample. Convert % to grams, calculate moles, divide by smallest mole value.</p>` 
+          },
+          { title: "Subtopic 2.4: Video Demonstration", text: `<div class='aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-950'><iframe class='w-full h-full' src='https://www.youtube.com/embed/wnRaBWvhYKY' frameborder='0' allowfullscreen></iframe></div>` }
+        ],
+        questions: [
+          { q: "A compound is 40.0% C, 6.7% H, and 53.3% O. What is its empirical formula?", opts: ["CH₂O", "C₂H₄O₂", "CHO", "C₆H₁₂O₆"], ans: 0, hint: "Moles ratio is C:1, H:2, O:1.", finalAnswer: "CH₂O" },
+          { q: "What is the empirical formula of Hydrogen Peroxide (H₂O₂)?", opts: ["HO", "H₂O", "H₂O₂", "O₂H"], ans: 0, hint: "Divide 2:2 by 2 to get 1:1.", finalAnswer: "HO" },
+          { q: "What is the empirical formula of Ethane (C₂H₆)?", opts: ["CH₃", "CH₂", "C₂H₆", "CH"], ans: 0, hint: "Divide subscripts 2 and 6 by 2.", finalAnswer: "CH₃" },
+          { q: "If mole ratios are C = 1.0, H = 2.5, O = 1.0, what integer multiplier do you use?", opts: ["Multiply by 2 to get C₂H₅O₂", "Multiply by 3", "Round 2.5 to 3", "Keep as CH2.5O"], ans: 0, hint: "2.5 x 2 = 5 whole number.", finalAnswer: "Multiply by 2 to get C₂H₅O₂" },
+          { q: "Which of the following is already an empirical formula?", opts: ["NH₃", "N₂H₄", "C₄H₁₀", "P₄O₁₀"], ans: 0, hint: "1:3 cannot be simplified further.", finalAnswer: "NH₃" }
+        ]
+      },
+      {
+        id: 3,
+        code: "STEM_GC11PC-If-33",
+        title: "3. Calculate molecular formula given molar mass",
+        desc: "Find the actual whole-number multiple of the empirical formula using molecular mass.",
+        elements: [
+          { symbol: "C", name: "Carbon", mass: "12.011 g/mol", bg: "bg-slate-500/20 text-slate-300 border-slate-500/40" },
+          { symbol: "H", name: "Hydrogen", mass: "1.008 g/mol", bg: "bg-blue-500/20 text-blue-300 border-blue-500/40" }
+        ],
+        lessons: [
+          { 
+            title: "Subtopic 3.1: Formula Multiplier n", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Whole Number Multiple (n):</strong> Molecular Molar Mass / Empirical Mass.</li>
+                </ul>
+              </div>
+              <p>$$n = \\frac{\\text{Molecular Molar Mass}}{\\text{Empirical Mass}}$$</p>
+            ` 
+          },
+          { title: "Subtopic 3.2: Deriving Subscripts", text: `<p>Multiply empirical subscripts by integer n.</p>` },
+          { title: "Subtopic 3.3: Practical Comparison", text: `<p>Formaldehyde (CH₂O), Lactic Acid (C₃H₆O₃), and Glucose (C₆H₁₂O₆) share the same empirical formula.</p>` },
+          { title: "Subtopic 3.4: Video Demonstration", text: `<div class='aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-950'><iframe class='w-full h-full' src='https://www.youtube.com/embed/JeSSucG-CVw' frameborder='0' allowfullscreen></iframe></div>` }
+        ],
+        questions: [
+          { q: "An empirical formula is CH₂O (mass = 30 g/mol). Experimental molar mass is 180 g/mol. What is the molecular formula?", opts: ["CH₂O", "C₂H₄O₂", "C₆H₁₂O₆", "C₃H₆O₃"], ans: 2, hint: "n = 180 / 30 = 6.", finalAnswer: "C₆H₁₂O₆" },
+          { q: "An empirical formula is CH₂ (mass = 14 g/mol). Molar mass is 56 g/mol. What is the molecular formula?", opts: ["C₄H₈", "C₂H₄", "C₃H₆", "C₅H₁₀"], ans: 0, hint: "n = 56 / 14 = 4.", finalAnswer: "C₄H₈" },
+          { q: "If empirical mass equals molecular mass, what is n?", opts: ["1", "2", "0", "10"], ans: 0, hint: "Empirical and molecular formulas are identical.", finalAnswer: "1" },
+          { q: "An empirical formula is NO₂ (mass = 46 g/mol) with molar mass = 92 g/mol. What is the molecular formula?", opts: ["N₂O₄", "NO₂", "N₃O₆", "N₄O₈"], ans: 0, hint: "n = 92 / 46 = 2.", finalAnswer: "N₂O₄" },
+          { q: "Benzene has empirical formula CH and molar mass 78 g/mol (CH = 13 g/mol). What is Benzene's formula?", opts: ["C₆H₆", "C₂H₂", "C₄H₄", "C8H8"], ans: 0, hint: "78 / 13 = 6.", finalAnswer: "C₆H₆" }
+        ]
+      },
+      {
+        id: 4,
+        code: "STEM_GC11CR-If-g-34",
+        title: "4. Write equations for chemical reactions and balance the equations",
+        desc: "Express chemical reactions using balanced equations where atom counts match on both sides.",
+        elements: [
+          { symbol: "H", name: "Hydrogen", mass: "1.008 g/mol", bg: "bg-blue-500/20 text-blue-300 border-blue-500/40" },
+          { symbol: "O", name: "Oxygen", mass: "15.999 g/mol", bg: "bg-red-500/20 text-red-300 border-red-500/40" }
+        ],
+        lessons: [
+          { 
+            title: "Subtopic 4.1: Reactants & Products", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Reactants:</strong> Starting substances. <strong>Products:</strong> Formed substances.</li>
+                </ul>
+              </div>
+              <p>Reactants $\\rightarrow$ Products. Coefficients balance atomic totals.</p>
+            ` 
+          },
+          { title: "Subtopic 4.2: MINOH Balancing Technique", text: `<p>Balance Metals, Polyatomic Ions, Non-metals, Oxygen, then Hydrogen.</p>` },
+          { title: "Subtopic 4.3: Atom Inventory Verification", text: `<p>Check atom counts before and after to verify equality.</p>` },
+          { title: "Subtopic 4.4: Video Demonstration", text: `<div class='aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-950'><iframe class='w-full h-full' src='https://www.youtube.com/embed/zmdxMlb88Fs' frameborder='0' allowfullscreen></iframe></div>` }
+        ],
+        questions: [
+          { q: "What coefficient balances O₂ in: _ H₂ + _ O₂ → 2 H₂O?", opts: ["1", "2", "3", "4"], ans: 0, hint: "2 H₂ + 1 O₂ → 2 H₂O.", finalAnswer: "1" },
+          { q: "In 3 H₂O, how many total Hydrogen atoms are present?", opts: ["6", "3", "2", "5"], ans: 0, hint: "Coefficient 3 x subscript 2 = 6.", finalAnswer: "6" },
+          { q: "What coefficient is needed for Fe in: _ Fe + 3 O₂ → 2 Fe₂O₃?", opts: ["4", "2", "3", "1"], ans: 0, hint: "Product side has 2 x 2 = 4 Fe atoms.", finalAnswer: "4" },
+          { q: "Law of Conservation of Mass requires chemical equations to be balanced because:", opts: ["Atoms are neither created nor destroyed", "Molecules expand", "Gases escape", "Heat is absorbed"], ans: 0, hint: "Atomic count must be conserved.", finalAnswer: "Atoms are neither created nor destroyed" },
+          { q: "Balance: CH₄ + _ O₂ → CO₂ + 2 H₂O. What coefficient is in front of O₂?", opts: ["2", "1", "3", "4"], ans: 0, hint: "Right side has 2 + 2 = 4 Oxygen atoms.", finalAnswer: "2" }
+        ]
+      },
+      {
+        id: 5,
+        code: "STEM_GC11CR-If-g-35",
+        title: "5. Interpret meaning of balanced reaction in terms of conservation of mass",
+        desc: "Verify that mass is neither created nor destroyed in a chemical reaction.",
+        elements: [
+          { symbol: "Na", name: "Sodium", mass: "22.990 g/mol", bg: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40" },
+          { symbol: "Cl", name: "Chlorine", mass: "35.453 g/mol", bg: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40" }
+        ],
+        lessons: [
+          { 
+            title: "Subtopic 5.1: Lavoisier's Principle", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Law of Conservation of Mass:</strong> Mass of Reactants = Mass of Products in closed systems.</li>
+                </ul>
+              </div>
+              <p>Mass is conserved; matter cannot be created or destroyed.</p>
+            ` 
+          },
+          { title: "Subtopic 5.2: Open vs Closed Systems", text: `<p>Escaping gas in open flasks causes apparent weight loss.</p>` },
+          { title: "Subtopic 5.3: Stoichiometric Mass Verification", text: `<p>AgNO₃ + NaCl $\\rightarrow$ AgCl + NaNO₃ (228.31g = 228.31g).</p>` },
+          { title: "Subtopic 5.4: Video Demonstration", text: `<div class='aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-950'><iframe class='w-full h-full' src='https://www.youtube.com/embed/2S6e11NBwiw' frameborder='0' allowfullscreen></iframe></div>` }
+        ],
+        questions: [
+          { q: "10g of A reacts completely with 15g of B to form C. What is the mass of C?", opts: ["25g", "10g", "15g", "5g"], ans: 0, hint: "Total reactant mass = product mass.", finalAnswer: "25g" },
+          { q: "Why might an open beaker reaction seem to lose mass?", opts: ["Gas escaped into air", "Atoms vanished", "Energy converted to mass", "Scale error"], ans: 0, hint: "Gaseous products escape in open systems.", finalAnswer: "Gas escaped into air" },
+          { q: "Who formulated the Law of Conservation of Mass?", opts: ["Antoine Lavoisier", "Dmitri Mendeleev", "John Dalton", "Amedeo Avogadro"], ans: 0, hint: "French chemist in 1789.", finalAnswer: "Antoine Lavoisier" },
+          { q: "If 32g of Sulfur reacts with Oxygen to form 64g of SO₂, how much Oxygen reacted?", opts: ["32g", "64g", "16g", "48g"], ans: 0, hint: "64g - 32g = 32g.", finalAnswer: "32g" },
+          { q: "In a closed sealed container, total mass before and after reaction is:", opts: ["Exactly equal", "Greater after", "Lesser after", "Random"], ans: 0, hint: "Mass is strictly conserved.", finalAnswer: "Exactly equal" }
+        ]
+      },
+      {
+        id: 6,
+        code: "STEM_GC11CR-If-g-36",
+        title: "6. Describe evidences that a chemical reaction has occurred",
+        desc: "Key physical indicators: unexpected color shift, gas evolution, precipitate formation, light/heat release.",
+        elements: [
+          { symbol: "Fe", name: "Iron", mass: "55.845 g/mol", bg: "bg-amber-500/20 text-amber-300 border-amber-500/40" },
+          { symbol: "Cu", name: "Copper", mass: "63.546 g/mol", bg: "bg-orange-500/20 text-orange-300 border-orange-500/40" }
+        ],
+        lessons: [
+          { 
+            title: "Subtopic 6.1: The 5 Macro Indicators", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Key Terms & Definitions:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Precipitate:</strong> An insoluble solid separating from solution.</li>
+                  <li><strong>Effervescence:</strong> Rapid gas bubbling.</li>
+                </ul>
+              </div>
+              <p>Color shift, gas evolution, precipitate formation, thermal shift, and light emission.</p>
+            ` 
+          },
+          { title: "Subtopic 6.2: Exothermic vs Endothermic Mechanisms", text: `<p>Exothermic releases heat (warm). Endothermic absorbs heat (cold).</p>` },
+          { title: "Subtopic 6.3: Precipitate & Gas Analysis", text: `<p>Precipitate formation and gas evolution during mixing.</p>` },
+          { title: "Subtopic 6.4: Video Demonstration", text: `<div class='aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-950'><iframe class='w-full h-full' src='https://www.youtube.com/embed/z0187f8gqfU' frameborder='0' allowfullscreen></iframe></div>` }
+        ],
+        questions: [
+          { q: "Which of the following is NOT an evidence of a chemical reaction?", opts: ["Ice melting into water", "Bubbling gas formation", "Precipitate forming", "Unexpected color change"], ans: 0, hint: "Melting ice is a physical phase change.", finalAnswer: "Ice melting into water" },
+          { q: "When baking soda is mixed with vinegar, gas bubbles vigoriously. What gas is evolved?", opts: ["Carbon Dioxide (CO₂)", "Oxygen (O₂)", "Hydrogen (H₂)", "Nitrogen (N₂)"], ans: 0, hint: "Acid-carbonate reaction produces CO₂.", finalAnswer: "Carbon Dioxide (CO₂)" },
+          { q: "A reaction that absorbs thermal energy from surroundings and feels cold is:", opts: ["Endothermic", "Exothermic", "Isothermal", "Nuclear"], ans: 0, hint: "Endo = inside / absorbing.", finalAnswer: "Endothermic" },
+          { q: "An insoluble solid that settles out of a liquid mixture during a chemical reaction is called a:", opts: ["Precipitate", "Solute", "Solvent", "Catalyst"], ans: 0, hint: "Solid product formed from solution.", finalAnswer: "Precipitate" },
+          { q: "Rusting of an iron nail is an evidence of:", opts: ["Chemical Change (Color & Composition)", "Physical Phase Change", "Simple Sublimation", "Evaporation"], ans: 0, hint: "New substance (rust) with distinct chemical properties forms.", finalAnswer: "Chemical Change (Color & Composition)" }
+        ]
+      },
+      {
+        id: 7,
+        code: "STEM_GC11CR-If-g-37",
+        title: "7. (LAB) Perform exercises on writing and balancing chemical equations",
+        desc: "Hands-on virtual laboratory practical exercises for writing and balancing equations.",
+        elements: [
+          { symbol: "H", name: "Hydrogen", mass: "1.008 g/mol", bg: "bg-blue-500/20 text-blue-300 border-blue-500/40" },
+          { symbol: "O", name: "Oxygen", mass: "15.999 g/mol", bg: "bg-red-500/20 text-red-300 border-red-500/40" }
+        ],
+        lessons: [
+          { 
+            title: "Subtopic 7.1: Virtual Lab Protocol", 
+            text: `
+              <div class="mb-3 p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl space-y-1">
+                <p class="text-cyan-300 font-bold"><i class="fa-solid fa-book-bookmark mr-1"></i> Laboratory Guidelines:</p>
+                <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                  <li><strong>Virtual Practical:</strong> Test balancing coefficients and inspect atom counts in real-time.</li>
+                </ul>
+              </div>
+              <p>Practice stoichiometry balancing via the interactive 3D simulation module below.</p>
+            ` 
+          },
+          { title: "Subtopic 7.2: Balancing Combustion", text: `<p>Combustion of hydrocarbons requires balancing C, then H, then O.</p>` },
+          { title: "Subtopic 7.3: Synthesis & Decomposition", text: `<p>Combining elements to form binary compounds with stoichiometric coefficients.</p>` },
+          { title: "Subtopic 7.4: Video Demonstration", text: `<div class='aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-950'><iframe class='w-full h-full' src='https://www.youtube.com/embed/zmdxMlb88Fs' frameborder='0' allowfullscreen></iframe></div>` }
+        ],
+        questions: [
+          { q: "(LAB EXERCISE) Balance the equation: _ Na + _ Cl₂ → 2 NaCl. What is the coefficient for Na?", opts: ["2", "1", "3", "4"], ans: 0, hint: "Product has 2 Na atoms.", finalAnswer: "2" },
+          { q: "(LAB EXERCISE) In the synthesis of water, what is the coefficient of H₂O in: 2 H₂ + O₂ → _ H₂O?", opts: ["2", "1", "3", "4"], ans: 0, hint: "Balances 4 H atoms on both sides.", finalAnswer: "2" },
+          { q: "(LAB EXERCISE) Balance: _ KClO₃ → 2 KCl + 3 O₂. What is the coefficient for KClO₃?", opts: ["2", "1", "3", "4"], ans: 0, hint: "Product has 6 O atoms, so use 2.", finalAnswer: "2" },
+          { q: "(LAB EXERCISE) What type of reaction is: A + B → AB?", opts: ["Synthesis / Combination", "Decomposition", "Single Replacement", "Combustion"], ans: 0, hint: "Two reactants combine into one product.", finalAnswer: "Synthesis / Combination" },
+          { q: "(LAB EXERCISE) What is conserved in all correctly balanced chemical equations?", opts: ["Total number of atoms per element & Mass", "Volume", "Moles of gas", "Pressure"], ans: 0, hint: "Lavoisier's conservation law.", finalAnswer: "Total number of atoms per element & Mass" }
+        ]
+      }
+    ];
+
+    let currentUserRole = 'student';
+    let bgRenderer, bgScene, bgCamera, bgParticlesGroup;
+
+    function createSafeWebGLRenderer(canvasElement) {
+      try {
+        return new THREE.WebGLRenderer({ canvas: canvasElement, alpha: true, antialias: true });
+      } catch (err) {
+        console.warn("WebGL renderer creation failed:", err);
+        return null;
+      }
+    }
+
+    // 3D ANIMATED LABORATORY BACKGROUND
+    function init3DBackground() {
+      const bgCanvas = document.getElementById('bg3dCanvas');
+      bgRenderer = createSafeWebGLRenderer(bgCanvas);
+      if (!bgRenderer) return;
+
+      bgRenderer.setSize(window.innerWidth, window.innerHeight);
+      bgScene = new THREE.Scene();
+      bgCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      bgCamera.position.z = 25;
+
+      const bgLight = new THREE.DirectionalLight(0x00f0ff, 0.9);
+      bgLight.position.set(5, 10, 10);
+      const bgAmb = new THREE.AmbientLight(0x0f172a, 0.9);
+      bgScene.add(bgLight, bgAmb);
+
+      bgParticlesGroup = new THREE.Group();
+
+      const labMat = new THREE.MeshPhongMaterial({ color: 0x00f0ff, wireframe: true, transparent: true, opacity: 0.25 });
+      const flaskMat = new THREE.MeshPhongMaterial({ color: 0xfcd116, wireframe: true, transparent: true, opacity: 0.2 });
+
+      for (let i = 0; i < 18; i++) {
+        const beaker = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.8, 16), labMat);
+        beaker.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 40, (Math.random() - 0.5) * 30);
+        beaker.rotation.set(Math.random(), Math.random(), Math.random());
+        bgParticlesGroup.add(beaker);
+
+        const flask = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2, 16), flaskMat);
+        flask.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 40, (Math.random() - 0.5) * 30);
+        flask.rotation.set(Math.random(), Math.random(), Math.random());
+        bgParticlesGroup.add(flask);
+
+        const atom = new THREE.Mesh(new THREE.IcosahedronGeometry(0.9, 1), labMat);
+        atom.position.set((Math.random() - 0.5) * 50, (Math.random() - 0.5) * 40, (Math.random() - 0.5) * 30);
+        bgParticlesGroup.add(atom);
+      }
+
+      bgScene.add(bgParticlesGroup);
+
+      window.addEventListener('resize', () => {
+        bgCamera.aspect = window.innerWidth / window.innerHeight;
+        bgCamera.updateProjectionMatrix();
+        bgRenderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      function animateBg() {
+        requestAnimationFrame(animateBg);
+        bgParticlesGroup.rotation.y += 0.0012;
+        bgParticlesGroup.rotation.x += 0.0006;
+        bgRenderer.render(bgScene, bgCamera);
+      }
+      animateBg();
+    }
+
+    // Global State Variables
+    let currentTopicIndex = 0;
+    let currentLessonIndex = 0;
+    let currentQuizIndex = 0;
+    let userQuizAnswers = {};
+    let speechEnabled = true;
+
+    // Scientist Mascot 3D State Variables
+    let mascotRenderer, mascotScene, mascotCamera, mascotMesh, mascotMouthMesh, mascotArmsGroup;
+    let isMascotSpeaking = false;
+    let mascotSpeechTime = 0;
+
+    // Simulation 3D State Variables
+    let simRenderer, simScene, simCamera, simMoleculeGroup;
+    let isSimDragging = false;
+    let previousMousePosition = { x: 0, y: 0 };
+
+    // Calculator State
+    let calcExpression = "0";
+
+    // Teacher Roster Mock Data
+    const teacherRosterData = [
+      { name: "Juan Dela Cruz", lrn: "123456789012", section: "Grade 10 - Molave", modules: "7/7", quizScore: "94%", status: "Passed" },
+      { name: "Maria Santos", lrn: "123456789013", section: "Grade 10 - Molave", modules: "6/7", quizScore: "88%", status: "Active" },
+      { name: "Mark Rivera", lrn: "123456789014", section: "Grade 10 - Molave", modules: "7/7", quizScore: "90%", status: "Passed" },
+      { name: "Anna Reyes", lrn: "123456789015", section: "Grade 10 - Molave", modules: "5/7", quizScore: "82%", status: "Active" }
+    ];
+
+    function switchAuthRole(role) {
+      currentUserRole = role;
+      const studentFields = document.getElementById('studentOnlyFields');
+      const teacherFields = document.getElementById('teacherOnlyFields');
+      const btnStudent = document.getElementById('authTabStudent');
+      const btnTeacher = document.getElementById('authTabTeacher');
+      const roleBadge = document.getElementById('roleBadge');
+      const teacherNavBtn = document.getElementById('teacherNavBtn');
+
+      if (role === 'student') {
+        studentFields.classList.remove('hidden');
+        teacherFields.classList.add('hidden');
+        btnStudent.className = "py-2 rounded-lg bg-blue-600 text-white shadow";
+        btnTeacher.className = "py-2 rounded-lg text-slate-400 hover:text-white";
+        if (roleBadge) roleBadge.innerText = "Student Lounge";
+        if (teacherNavBtn) teacherNavBtn.classList.add('hidden');
+      } else {
+        studentFields.classList.add('hidden');
+        teacherFields.classList.remove('hidden');
+        btnTeacher.className = "py-2 rounded-lg bg-blue-600 text-white shadow";
+        btnStudent.className = "py-2 rounded-lg text-slate-400 hover:text-white";
+        if (roleBadge) roleBadge.innerText = "Teacher Dashboard";
+        if (teacherNavBtn) teacherNavBtn.classList.remove('hidden');
+      }
+    }
+
+    function handleAuthSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('authName').value || "Learner";
+      const grade = document.getElementById('authGrade').value || "Grade 10";
+      const lrn = document.getElementById('authLRN').value || document.getElementById('authTeacherID').value || "N/A";
+      const school = document.getElementById('authSchool').value || "Central High School";
+
+      document.getElementById('studentName').value = name;
+      document.getElementById('studentGrade').value = grade;
+      document.getElementById('studentLRN').value = lrn;
+      document.getElementById('studentSchool').value = school;
+
+      document.getElementById('authModal').classList.add('hidden');
+
+      const greetingMsg = `Greetings ${name}! I am Scientist Mole. Welcome to Mole-Cule Lounge! Let's explore chemistry with 3D models and simulations together!`;
+      setMascotMood("Excited 👋", greetingMsg);
+      triggerMascotWave();
+    }
+
+    function init3DMascot() {
+      const mCanvas = document.getElementById('mascotCanvas');
+      if (!mCanvas) return;
+
+      mascotRenderer = createSafeWebGLRenderer(mCanvas);
+      if (!mascotRenderer) {
+        document.getElementById('mascotFallback').classList.remove('hidden');
+        return;
+      }
+
+      const rect = mCanvas.getBoundingClientRect();
+      mascotRenderer.setSize(rect.width || 300, rect.height || 200);
+
+      mascotScene = new THREE.Scene();
+      mascotCamera = new THREE.PerspectiveCamera(50, (rect.width || 300) / (rect.height || 200), 0.1, 100);
+      mascotCamera.position.set(0, 0, 5);
+
+      const light1 = new THREE.DirectionalLight(0xffffff, 1);
+      light1.position.set(2, 4, 5);
+      const light2 = new THREE.AmbientLight(0x38bdf8, 0.6);
+      mascotScene.add(light1, light2);
+
+      const mascotGroup = new THREE.Group();
+
+      const bodyMat = new THREE.MeshPhongMaterial({ color: 0x0284c7, shininess: 80 });
+      const bodyGeo = new THREE.SphereGeometry(1.2, 32, 32);
+      mascotMesh = new THREE.Mesh(bodyGeo, bodyMat);
+      mascotGroup.add(mascotMesh);
+
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const pupilMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+
+      const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), eyeMat);
+      leftEye.position.set(-0.4, 0.3, 1.05);
+      const leftPupil = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), pupilMat);
+      leftPupil.position.set(-0.4, 0.3, 1.22);
+
+      const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), eyeMat);
+      rightEye.position.set(0.4, 0.3, 1.05);
+      const rightPupil = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), pupilMat);
+      rightPupil.position.set(0.4, 0.3, 1.22);
+
+      mascotGroup.add(leftEye, leftPupil, rightEye, rightPupil);
+
+      const mouthMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+      const mouthGeo = new THREE.BoxGeometry(0.4, 0.1, 0.1);
+      mascotMouthMesh = new THREE.Mesh(mouthGeo, mouthMat);
+      mascotMouthMesh.position.set(0, -0.25, 1.15);
+      mascotGroup.add(mascotMouthMesh);
+
+      mascotArmsGroup = new THREE.Group();
+      const armMat = new THREE.MeshPhongMaterial({ color: 0x0369a1 });
+      const armGeo = new THREE.CylinderGeometry(0.1, 0.12, 0.8, 16);
+
+      const rightArm = new THREE.Mesh(armGeo, armMat);
+      rightArm.position.set(1.3, 0, 0);
+      rightArm.rotation.z = -Math.PI / 4;
+      mascotArmsGroup.add(rightArm);
+      mascotGroup.add(mascotArmsGroup);
+
+      mascotScene.add(mascotGroup);
+
+      function animateMascot() {
+        requestAnimationFrame(animateMascot);
+        const time = Date.now() * 0.003;
+
+        mascotGroup.position.y = Math.sin(time) * 0.08;
+
+        if (isMascotSpeaking) {
+          mascotSpeechTime += 0.2;
+          const mouthScale = 1 + Math.abs(Math.sin(mascotSpeechTime)) * 1.8;
+          mascotMouthMesh.scale.set(1, mouthScale, 1);
+        } else {
+          mascotMouthMesh.scale.set(1, 1, 1);
+        }
+
+        mascotRenderer.render(mascotScene, mascotCamera);
+      }
+      animateMascot();
+    }
+
+    function setMascotMood(mood, text) {
+      const moodBadge = document.getElementById('mascotMoodBadge');
+      const speechBox = document.getElementById('drAtomSpeech');
+
+      if (moodBadge) moodBadge.innerText = `Mood: ${mood}`;
+      if (speechBox && text) {
+        speechBox.innerText = `"${text}"`;
+        speakText(text);
+      }
+    }
+
+    function triggerMascotWave() {
+      if (mascotArmsGroup) {
+        let count = 0;
+        const waveInterval = setInterval(() => {
+          count++;
+          mascotArmsGroup.rotation.z = Math.sin(count * 0.5) * 0.5;
+          if (count > 15) {
+            clearInterval(waveInterval);
+            mascotArmsGroup.rotation.z = 0;
+          }
+        }, 50);
+      }
+      setMascotMood("Happy 😊", "Let's investigate chemical phenomena together!");
+    }
+
+    function toggleVoice() {
+      speechEnabled = !speechEnabled;
+      const voiceStatus = document.getElementById('voiceStatus');
+      if (voiceStatus) {
+        voiceStatus.innerText = speechEnabled ? "ON" : "OFF";
+        voiceStatus.className = speechEnabled ? "text-emerald-400 font-bold" : "text-rose-400 font-bold";
+      }
+      if (!speechEnabled && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function speakText(text) {
+      if (!speechEnabled || !('speechSynthesis' in window)) return;
+
+      window.speechSynthesis.cancel();
+      const cleanText = text.replace(/<[^>]*>?/gm, '').replace(/\$\$/g, '');
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.1;
+
+      utterance.onstart = () => { isMascotSpeaking = true; };
+      utterance.onend = () => { isMascotSpeaking = false; };
+      utterance.onerror = () => { isMascotSpeaking = false; };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function init3DSimulation() {
+      const simCanvas = document.getElementById('threeCanvas');
+      if (!simCanvas) return;
+
+      simRenderer = createSafeWebGLRenderer(simCanvas);
+      if (!simRenderer) {
+        document.getElementById('simFallback').classList.remove('hidden');
+        return;
+      }
+
+      const rect = simCanvas.getBoundingClientRect();
+      simRenderer.setSize(rect.width || 600, rect.height || 300);
+
+      simScene = new THREE.Scene();
+      simCamera = new THREE.PerspectiveCamera(50, (rect.width || 600) / (rect.height || 300), 0.1, 100);
+      simCamera.position.set(0, 0, 8);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      dirLight.position.set(5, 5, 5);
+      const ambLight = new THREE.AmbientLight(0x1e293b, 0.8);
+      simScene.add(dirLight, ambLight);
+
+      simMoleculeGroup = new THREE.Group();
+      simScene.add(simMoleculeGroup);
+
+      simCanvas.addEventListener('mousedown', (e) => {
+        isSimDragging = true;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+      });
+
+      window.addEventListener('mouseup', () => { isSimDragging = false; });
+
+      simCanvas.addEventListener('mousemove', (e) => {
+        if (!isSimDragging) return;
+        const deltaMove = { x: e.clientX - previousMousePosition.x, y: e.clientY - previousMousePosition.y };
+        simMoleculeGroup.rotation.y += deltaMove.x * 0.01;
+        simMoleculeGroup.rotation.x += deltaMove.y * 0.01;
+        previousMousePosition = { x: e.clientX, y: e.clientY };
+      });
+
+      function animateSim() {
+        requestAnimationFrame(animateSim);
+        if (!isSimDragging) {
+          simMoleculeGroup.rotation.y += 0.005;
+        }
+        simRenderer.render(simScene, simCamera);
+      }
+      animateSim();
+      update3DSimulationScene();
+    }
+
+    function update3DSimulationScene() {
+      if (!simMoleculeGroup) return;
+
+      while (simMoleculeGroup.children.length > 0) {
+        simMoleculeGroup.remove(simMoleculeGroup.children[0]);
+      }
+
+      const currentTopic = topicsData[currentTopicIndex];
+      const simOverlay = document.getElementById('simOverlay');
+      if (simOverlay) simOverlay.innerText = `3D Simulation: ${currentTopic.title}`;
+
+      if (currentTopicIndex === 0 || currentTopicIndex === 1 || currentTopicIndex === 2) {
+        // Molecular Structure Model
+        const oMat = new THREE.MeshPhongMaterial({ color: 0xef4444, shininess: 90 });
+        const hMat = new THREE.MeshPhongMaterial({ color: 0xf8fafc, shininess: 90 });
+        const bondMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8 });
+
+        const oAtom = new THREE.Mesh(new THREE.SphereGeometry(1.0, 32, 32), oMat);
+        simMoleculeGroup.add(oAtom);
+
+        const h1 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 24), hMat);
+        h1.position.set(-1.4, 1.0, 0);
+        const h2 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 24), hMat);
+        h2.position.set(1.4, 1.0, 0);
+        simMoleculeGroup.add(h1, h2);
+
+        const b1 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.6), bondMat);
+        b1.position.set(-0.7, 0.5, 0);
+        b1.rotation.z = -Math.PI / 4;
+
+        const b2 = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.6), bondMat);
+        b2.position.set(0.7, 0.5, 0);
+        b2.rotation.z = Math.PI / 4;
+
+        simMoleculeGroup.add(b1, b2);
+      } else {
+        // Chemical Reaction & Balancing Simulation Model
+        const sphereGeo = new THREE.IcosahedronGeometry(1.3, 2);
+        const mat = new THREE.MeshPhongMaterial({ color: 0x00f0ff, wireframe: true });
+        const core = new THREE.Mesh(sphereGeo, mat);
+        simMoleculeGroup.add(core);
+
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xfcd116, wireframe: true });
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.08, 16, 50), ringMat);
+        ring.rotation.x = Math.PI / 3;
+        simMoleculeGroup.add(ring);
+      }
+    }
+
+    function renderTopicsList() {
+      const container = document.getElementById('topicButtonsContainer');
+      if (!container) return;
+
+      container.innerHTML = topicsData.map((t, idx) => `
+        <button onclick="selectTopic(${idx})" class="w-full text-left p-3 rounded-xl border transition ${
+          idx === currentTopicIndex
+            ? 'bg-gradient-to-r from-blue-900/60 to-cyan-900/40 border-cyan-400 text-white shadow-lg'
+            : 'bg-slate-950/70 border-slate-800 text-slate-300 hover:bg-slate-800/80 hover:text-white'
+        }">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-300">${t.code}</span>
+            <span class="text-[10px] text-slate-400 font-semibold"><i class="fa-solid fa-list-check text-emerald-400 mr-1"></i> 5 Qs</span>
+          </div>
+          <p class="font-bold text-xs truncate">${t.title}</p>
+        </button>
+      `).join('');
+    }
+
+    function selectTopic(index) {
+      currentTopicIndex = index;
+      currentLessonIndex = 0;
+      currentQuizIndex = 0;
+
+      renderTopicsList();
+      loadTopicContent();
+      update3DSimulationScene();
+
+      setMascotMood("Focused 🎓", `Now tackling: ${topicsData[index].title}. Let's examine the concepts!`);
+    }
+
+    function loadTopicContent() {
+      const topic = topicsData[currentTopicIndex];
+
+      document.getElementById('topicCodeBadge').innerText = topic.code;
+      document.getElementById('topicTitle').innerText = topic.title;
+      document.getElementById('topicDescription').innerText = topic.desc;
+
+      const elemRef = document.getElementById('elementQuickRef');
+      if (elemRef) {
+        elemRef.innerHTML = topic.elements.map(e => `
+          <div class="px-2.5 py-1 rounded-lg border text-xs font-mono flex items-center gap-2 ${e.bg}">
+            <span class="font-bold text-sm">${e.symbol}</span>
+            <span>${e.name} (${e.mass})</span>
+          </div>
+        `).join('');
+      }
+
+      switchLesson(currentLessonIndex + 1);
+      renderQuizQuestion();
+    }
+
+    function switchLesson(step) {
+      currentLessonIndex = step - 1;
+      const topic = topicsData[currentTopicIndex];
+      const lesson = topic.lessons[currentLessonIndex] || topic.lessons[0];
+
+      document.getElementById('lessonStepIndicator').innerText = `Subtopic ${step} of ${topic.lessons.length}`;
+
+      for (let i = 1; i <= 4; i++) {
+        const btn = document.getElementById(`lessonTab${i}`);
+        if (btn) {
+          if (i === step) {
+            btn.className = "py-2 px-3 rounded-lg font-semibold transition bg-blue-600 text-white shadow";
+          } else {
+            btn.className = "py-2 px-3 rounded-lg font-semibold transition text-slate-400 hover:text-slate-200 hover:bg-slate-800";
+          }
+        }
+      }
+
+      const contentBox = document.getElementById('lessonContent');
+      if (contentBox) {
+        contentBox.innerHTML = `
+          <h4 class="text-base font-bold text-cyan-300 font-display mb-2">${lesson.title}</h4>
+          <div>${lesson.text}</div>
+        `;
+      }
+    }
+
+    function renderQuizQuestion() {
+      const topic = topicsData[currentTopicIndex];
+      const q = topic.questions[currentQuizIndex];
+      const qBox = document.getElementById('quizQuestionBox');
+      const scoreBadge = document.getElementById('quizScoreBadge');
+
+      if (!qBox) return;
+
+      const userAns = userQuizAnswers[`${currentTopicIndex}_${currentQuizIndex}`];
+
+      // Column Form layout for quiz options to avoid confusion
+      qBox.innerHTML = `
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between text-xs text-slate-400 font-mono">
+            <span>Question ${currentQuizIndex + 1} of ${topic.questions.length}</span>
+            <span class="text-yellow-400 font-bold"><i class="fa-solid fa-lightbulb mr-1"></i> Socratic Prompt</span>
+          </div>
+          <p class="text-sm font-semibold text-white">${q.q}</p>
+          <div class="flex flex-col gap-2.5 pt-2">
+            ${q.opts.map((opt, idx) => `
+              <button onclick="selectQuizOption(${idx})" class="w-full text-left p-3 rounded-lg text-xs font-medium border transition ${
+                userAns === idx
+                  ? 'bg-cyan-900/50 border-cyan-400 text-white shadow'
+                  : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:bg-slate-800'
+              }">
+                <span class="font-mono text-cyan-400 mr-2">${String.fromCharCode(65 + idx)}.</span>${opt}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      const feedback = document.getElementById('feedbackBox');
+      if (feedback) feedback.classList.add('hidden');
+
+      let solvedCount = 0;
+      topic.questions.forEach((q, idx) => {
+        if (userQuizAnswers[`${currentTopicIndex}_${idx}`] === q.ans) solvedCount++;
+      });
+      if (scoreBadge) scoreBadge.innerText = `Module Score: ${solvedCount} / ${topic.questions.length}`;
+
+      updateMasteryProgress();
+    }
+
+    function selectQuizOption(optIndex) {
+      userQuizAnswers[`${currentTopicIndex}_${currentQuizIndex}`] = optIndex;
+      renderQuizQuestion();
+    }
+
+    function submitAnswer() {
+      const topic = topicsData[currentTopicIndex];
+      const q = topic.questions[currentQuizIndex];
+      const userAns = userQuizAnswers[`${currentTopicIndex}_${currentQuizIndex}`];
+      const feedback = document.getElementById('feedbackBox');
+
+      if (userAns === undefined) {
+        setMascotMood("Thinking 🤔", "Please select an answer choice in the column form before checking!");
+        return;
+      }
+
+      if (userAns === q.ans) {
+        feedback.className = "p-4 rounded-xl border border-emerald-500/50 bg-emerald-950/40 text-emerald-200 text-xs leading-relaxed block";
+        feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-base mr-2"></i> <strong>Correct!</strong> You got it right! Final Answer: <strong>${q.finalAnswer}</strong>. ${q.hint}`;
+        setMascotMood("Proud 🌟", "Spot on! Excellent scientific reasoning!");
+      } else {
+        feedback.className = "p-4 rounded-xl border border-rose-500/50 bg-rose-950/40 text-rose-200 text-xs leading-relaxed block";
+        feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-400 text-base mr-2"></i> <strong>Incorrect.</strong> The correct final answer is: <strong>${q.finalAnswer}</strong>. Socratic Hint: ${q.hint}`;
+        setMascotMood("Encouraging 💡", `Let's review: ${q.hint}`);
+      }
+
+      renderQuizQuestion();
+    }
+
+    function nextQuestion() {
+      const topic = topicsData[currentTopicIndex];
+      if (currentQuizIndex < topic.questions.length - 1) {
+        currentQuizIndex++;
+        renderQuizQuestion();
+      }
+    }
+
+    function prevQuestion() {
+      if (currentQuizIndex > 0) {
+        currentQuizIndex--;
+        renderQuizQuestion();
+      }
+    }
+
+    function askDrAtomHint() {
+      const q = topicsData[currentTopicIndex].questions[currentQuizIndex];
+      setMascotMood("Thinking 🤔", `Socratic Hint: ${q.hint}`);
+    }
+
+    function handleAiQuestion(e) {
+      e.preventDefault();
+      const input = document.getElementById('aiQueryInput');
+      const chatBox = document.getElementById('aiChatBox');
+      if (!input || !chatBox || !input.value.trim()) return;
+
+      const userText = input.value.trim();
+      chatBox.innerHTML += `
+        <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 text-slate-200">
+          <span class="text-blue-400 font-bold block mb-0.5"><i class="fa-solid fa-user mr-1"></i> You:</span>
+          ${userText}
+        </div>
+      `;
+
+      let aiReply = "Hello! To solve chemistry problems, follow the balanced ratios and mass conservation laws. How else can I assist you?";
+      if (userText.toLowerCase().includes("hi") || userText.toLowerCase().includes("hello")) {
+        aiReply = "Greetings! I am Scientist Mole, your chemistry guide. Ask me anything about our 7 learning objectives!";
+      } else if (userText.toLowerCase().includes("balance") || userText.toLowerCase().includes("equation")) {
+        aiReply = "When balancing equations, remember the MINOH sequence: Metals, Polyatomic Ions, Non-metals, Oxygen, then Hydrogen!";
+      }
+
+      chatBox.innerHTML += `
+        <div class="bg-cyan-950/50 p-2.5 rounded-lg border border-cyan-500/40 text-cyan-200">
+          <span class="text-cyan-400 font-bold block mb-0.5"><i class="fa-solid fa-flask mr-1"></i> Scientist Mole:</span>
+          ${aiReply}
+        </div>
+      `;
+
+      setMascotMood("Smart 🧠", aiReply);
+      input.value = "";
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function updateMasteryProgress() {
+      let totalSolved = 0;
+      let totalQuestions = 0;
+
+      topicsData.forEach((t, tIdx) => {
+        t.questions.forEach((q, qIdx) => {
+          totalQuestions++;
+          if (userQuizAnswers[`${tIdx}_${qIdx}`] === q.ans) totalSolved++;
+        });
+      });
+
+      const percent = Math.round((totalSolved / totalQuestions) * 100);
+      const overallText = document.getElementById('overallProgressPercent');
+      if (overallText) overallText.innerText = `${percent}% Done`;
+
+      if (percent > 20) document.getElementById('p4Check').className = "fa-solid fa-check-circle text-emerald-500 text-sm";
+      if (percent > 60) document.getElementById('p5Check').className = "fa-solid fa-check-circle text-emerald-500 text-sm";
+
+      if (percent >= 80) {
+        document.getElementById('completionBanner').classList.remove('hidden');
+      }
+    }
+
+    function toggleCalculator(show) {
+      const modal = document.getElementById('calculatorModal');
+      if (modal) modal.style.display = show ? 'flex' : 'none';
+    }
+
+    function calcPress(val) {
+      if (calcExpression === "0") calcExpression = "";
+      calcExpression += val;
+      updateCalcDisplay();
+    }
+
+    function calcClear() {
+      calcExpression = "0";
+      updateCalcDisplay();
+    }
+
+    function calcEval() {
+      try {
+        const res = eval(calcExpression.replace(/×/g, '*').replace(/÷/g, '/'));
+        calcExpression = String(res);
+      } catch (err) {
+        calcExpression = "Error";
+      }
+      updateCalcDisplay();
+    }
+
+    function applyCalcPreset() {
+      const select = document.getElementById('calcPreset');
+      if (!select) return;
+
+      const masses = { H2O: "18.015", CO2: "44.01", C6H12O6: "180.16", NaCl: "58.44", CaCO3: "100.09" };
+      if (masses[select.value]) {
+        calcExpression = masses[select.value];
+        updateCalcDisplay();
+      }
+    }
+
+    function updateCalcDisplay() {
+      document.getElementById('calcExpr').innerText = calcExpression || "0";
+      document.getElementById('calcDisplay').innerText = calcExpression || "0";
+    }
+
+    function toggleTeacherDashboard(show) {
+      const modal = document.getElementById('teacherDashboardModal');
+      if (!modal) return;
+
+      modal.classList.toggle('hidden', !show);
+      if (show) renderTeacherTable();
+    }
+
+    function renderTeacherTable() {
+      const tbody = document.getElementById('teacherRosterTable');
+      if (!tbody) return;
+
+      tbody.innerHTML = teacherRosterData.map(s => `
+        <tr class="hover:bg-slate-900/60 transition">
+          <td class="p-3 font-semibold text-white">${s.name}</td>
+          <td class="p-3 font-mono text-cyan-300">${s.lrn}</td>
+          <td class="p-3">${s.section}</td>
+          <td class="p-3">${s.modules}</td>
+          <td class="p-3 font-bold text-emerald-400">${s.quizScore}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${s.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'}">${s.status}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function updateProfile() {}
+
+    window.addEventListener('DOMContentLoaded', () => {
+      init3DBackground();
+      init3DMascot();
+      init3DSimulation();
+      renderTopicsList();
+      loadTopicContent();
+    });
+  </script>
+</body>
+</html>
